@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Click Per Second Tracker</title>
+    <style>
+        /* Global Styles */
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #111 0%, #222 100%);
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Main Container */
+        .container {
+            background-color: #ffffff;
+            padding: 30px 40px;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            width: 320px;
+            max-width: 100%;
+            font-family: 'Arial', sans-serif;
+            z-index: 1;
+        }
+
+        h1 {
+            color: #4CAF50;
+            font-size: 32px;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .timer, .score, .message, .totalClicks {
+            font-size: 18px;
+            margin-top: 15px;
+            color: #333;
+        }
+
+        /* Button Styles */
+        button {
+            padding: 15px 30px;
+            font-size: 18px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 25px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            margin-top: 20px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        button:active {
+            background-color: #388e3c;
+            box-shadow: none;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .task {
+            font-size: 20px;
+            margin-top: 30px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        /* Timer and Score Styles */
+        .score span, .timer span {
+            font-size: 24px;
+            font-weight: 600;
+            color: #4CAF50;
+        }
+
+        .message {
+            font-size: 18px;
+            color: #333;
+            margin-top: 10px;
+            font-style: italic;
+        }
+
+        /* Reset Button - Outside Box */
+        #resetButton {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 15px 30px;
+            background-color: #333;
+            color: white;
+            font-size: 18px;
+            border: none;
+            cursor: pointer;
+            border-radius: 25px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        #resetButton:hover {
+            background-color: #444;
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        #resetButton:active {
+            background-color: #333;
+            box-shadow: none;
+        }
+
+        /* Particle Animation for Comet-like effect */
+        .particle {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background-color: #ffffff; /* White for glow effect */
+            border-radius: 50%;
+            pointer-events: none;
+            opacity: 0;
+            animation: moveParticles 1.5s linear infinite;
+        }
+
+        @keyframes moveParticles {
+            from {
+                transform: translate(0, 0);
+                opacity: 1;
+            }
+            to {
+                transform: translate(var(--x), var(--y));
+                opacity: 0;
+            }
+        }
+
+        /* Galaxy Effect - Stars and Background */
+        #particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background: url('https://www.transparenttextures.com/patterns/stardust.png') repeat;
+            z-index: 0;
+        }
+
+        /* Comet Tail Effect */
+        .cometTail {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: rgba(255, 255, 255, 0.7);
+            border-radius: 50%;
+            opacity: 1;
+            animation: cometTailEffect 0.8s ease-out infinite;
+            pointer-events: none;
+        }
+
+        @keyframes cometTailEffect {
+            0% {
+                transform: scale(1);
+                opacity: 0.9;
+            }
+            50% {
+                transform: scale(2);
+                opacity: 0.4;
+            }
+            100% {
+                transform: scale(1);
+                opacity: 0.9;
+            }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 480px) {
+            .container {
+                padding: 20px;
+                width: 90%;
+            }
+
+            h1 {
+                font-size: 28px;
+            }
+
+            button {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Click Per Second Tracker</h1>
+        <button id="clickButton">Start Task</button>
+        <p class="timer">Time left: <span id="timer">5</span> seconds</p>
+        <p class="task hidden">Task: <span id="taskDescription"></span></p>
+        <p class="score hidden">Your CPS: <span id="score">0</span></p>
+        <p class="message hidden">Task completed! Try again!</p>
+        <p class="totalClicks">Total Clicks: <span id="totalClicks">0</span></p>
+    </div>
+
+    <button id="resetButton">Reset</button>
+
+    <!-- Particle Container for Space Effect -->
+    <div id="particles"></div>
+
+    <script>
+        // Variables to track game state
+        let clickCount = 0;
+        let totalClickCount = 0; // Track total clicks
+        let timeLeft = 5;
+        let gameActive = false;
+        let timerInterval;
+        let taskDescription;
+        let tasks = [
+            "Click 10 times",
+            "Click as fast as you can",
+            "Click 20 times",
+            "Try to click faster",
+            "Click 5 times without stopping"
+        ];
+
+        // Elements from the DOM
+        const clickButton = document.getElementById('clickButton');
+        const resetButton = document.getElementById('resetButton');
+        const timerElement = document.getElementById('timer');
+        const scoreElement = document.getElementById('score');
+        const messageElement = document.querySelector('.message');
+        const taskElement = document.getElementById('taskDescription');
+        const scoreDisplay = document.querySelector('.score');
+        const totalClicksElement = document.getElementById('totalClicks');
+        const particlesContainer = document.getElementById('particles');
+
+        // Function to start a task
+        function startTask() {
+            clickCount = 0;
+            timeLeft = 5;
+            gameActive = true;
+
+            // Reset elements
+            scoreDisplay.classList.add('hidden');
+            messageElement.classList.add('hidden');
+            taskElement.classList.remove('hidden');
+            taskDescription = getRandomTask();
+            taskElement.textContent = `Task: ${taskDescription}`;
+
+            // Enable the button and reset the click count
+            clickButton.disabled = false;
+            clickButton.textContent = 'Click me!';
+            scoreElement.textContent = clickCount;
+
+            // Start the timer
+            timerInterval = setInterval(function() {
+                timeLeft--;
+                timerElement.textContent = timeLeft + ' seconds';
+
+                if (timeLeft <= 0) {
+                    endTask();
+                }
+            }, 1000);
+
+            // Start particle effect (comet-like particles)
+            startParticles();
+        }
+
+        // Function to end the task and calculate CPS
+        function endTask() {
+            gameActive = false;
+            clickButton.disabled = true;
+            clearInterval(timerInterval);
+
+            // Calculate CPS (clicks per second)
+            const cps = (clickCount / 5).toFixed(2); // CPS calculation
+            scoreElement.textContent = cps;
+            scoreDisplay.classList.remove('hidden');
+            messageElement.classList.remove('hidden');
+            messageElement.textContent = `Task completed! Your CPS was ${cps}.`;
+
+            // Stop particle effect
+            stopParticles();
+        }
+
+        // Function to get a random task
+        function getRandomTask() {
+            return tasks[Math.floor(Math.random() * tasks.length)];
+        }
+
+        // Click event for the "Click me!" button
+        clickButton.addEventListener('click', function() {
+            if (gameActive) {
+                clickCount++;
+                totalClickCount++;  // Track total clicks
+                scoreElement.textContent = clickCount;
+                totalClicksElement.textContent = totalClickCount;
+            }
+        });
+
+        // Start the task when the user clicks the button for the first time
+        clickButton.addEventListener('click', function() {
+            if (!gameActive) {
+                startTask();
+            }
+        });
+
+        // Reset the task
+        resetButton.addEventListener('click', function() {
+            clickCount = 0;
+            timeLeft = 5;
+            scoreElement.textContent = 0;
+            timerElement.textContent = "5 seconds";
+            taskElement.classList.add('hidden');
+            scoreDisplay.classList.add('hidden');
+            messageElement.classList.add('hidden');
+            clickButton.textContent = "Start Task";
+            clickButton.disabled = false;
+            stopParticles(); // Stop particle effect
+        });
+
+        // Particle Effect - Follow cursor and create comet-like trails
+        function startParticles() {
+            document.body.addEventListener('mousemove', createParticle);
+            document.body.addEventListener('mousemove', createCometTail);
+        }
+
+        function stopParticles() {
+            document.body.removeEventListener('mousemove', createParticle);
+            document.body.removeEventListener('mousemove', createCometTail);
+            particlesContainer.innerHTML = ''; // Clear existing particles
+        }
+
+        function createParticle(event) {
+            if (!gameActive) return;
+
+            const particle = document.createElement('div');
+            particle.classList.add('particle');
+            particlesContainer.appendChild(particle);
+
+            // Random movement direction for the particle
+            const directionX = (Math.random() - 0.5) * 200; // Random horizontal speed
+            const directionY = (Math.random() - 0.5) * 200; // Random vertical speed
+
+            // Apply movement direction to the particle
+            particle.style.left = `${event.pageX - 6}px`;
+            particle.style.top = `${event.pageY - 6}px`;
+            particle.style.setProperty('--x', `${directionX}px`);
+            particle.style.setProperty('--y', `${directionY}px`);
+        }
+
+        // Create comet tail effect
+        function createCometTail(event) {
+            const tail = document.createElement('div');
+            tail.classList.add('cometTail');
+            particlesContainer.appendChild(tail);
+
+            // Place tail at mouse position and adjust the size randomly
+            const size = Math.random() * 5 + 3; // Random size for comet tail
+            tail.style.width = `${size}px`;
+            tail.style.height = `${size}px`;
+            tail.style.left = `${event.pageX - size / 2}px`;
+            tail.style.top = `${event.pageY - size / 2}px`;
+
+            setTimeout(() => {
+                tail.remove();
+            }, 800); // Remove comet tail after its glow effect ends
+        }
+    </script>
+</body>
+</html>
